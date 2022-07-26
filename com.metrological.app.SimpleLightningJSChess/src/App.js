@@ -17,7 +17,8 @@
  * limitations under the License.
  */
 
-import { Lightning, Utils, lng } from '@lightningjs/sdk'
+import { Lightning, Utils } from '@lightningjs/sdk'
+import { Pieces, Piece } from './Pieces'
 
 const ChessboardFiles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const ChessboardRanks = ['1', '2', '3', '4', '5', '6', '7', '8']
@@ -28,7 +29,7 @@ const ChessboardSquares = ChessboardFiles.map(file =>
 const IsometricSquareWidth = 124
 const IsometricSquareHeight = 60
 const IsometricMapOffsetX = 512
-const IsometricMapOffsetY = 0
+const IsometricMapOffsetY = 256
 
 export default class App extends Lightning.Component {
   static getFonts() {
@@ -70,25 +71,54 @@ export default class App extends Lightning.Component {
       }
     }, {})
     this.tag('ChessBoard').children = squares
-    this.tag('ChessBoard').children[0].childList.add({ type: Pawn })
+    this.__addFigures()
+  }
+
+  __addFigures() {
+    const pieces = {
+      PawnBlack: ChessboardFiles.map(file => `${file}7`),
+      PawnWhite: ChessboardFiles.map(file => `${file}2`),
+      RookBlack: ['A8', 'H8'],
+      RookWhite: ['A1', 'H1'],
+      KnightBlack: ['B8', 'G8'],
+      KnightWhite: ['B1', 'G1'],
+      BishopBlack: ['C8', 'F8'],
+      BishopWhite: ['C1', 'F1'],
+
+      QueenBlack: ['D8'],
+      QueenWhite: ['D1'],
+      KingBlack: ['E8'],
+      KingWhite: ['E1'],
+    }
+
+    Object.keys(pieces).forEach(piece => {
+      console.log(piece)
+      const coords = pieces[piece]
+      coords.forEach(coord => {
+        const square = this.tag('ChessBoard').childList.getByRef(coord)
+        square.childList.add({ type: Pieces[piece] })
+      })
+    })
   }
 
   _handleEnter() {
     if (!this.selected) {
       this.selected = this.tag('ChessBoard').children[this.index]
-      const piece = this.selected.children.find(child => child.constructor === Pawn)
+      const piece = this.selected.children.find(child => child instanceof Piece)
       if (piece) {
         piece._select()
       }
     } else {
-      const piece = this.selected.children.find(child => child.constructor === Pawn)
+      const piece = this.selected.children.find(child => child instanceof Piece)
 
       if (piece) {
         this.selected.childList.remove(piece)
         this.selected = this.tag('ChessBoard').children[this.index]
+        const existingPiece = this.selected.children.find(child => child instanceof Piece)
+        this.selected.childList.remove(existingPiece)
         this.selected.childList.add(piece)
         this.selected = false
-        setTimeout(() => piece._unselect(), 100)
+        piece._unselect()
       } else {
         this.selected = this.tag('ChessBoard').children[this.index]
       }
@@ -136,63 +166,6 @@ export default class App extends Lightning.Component {
   }
 }
 
-class Pawn extends Lightning.Component {
-  static _template() {
-    return {
-      rect: true,
-      Image: {
-        mountY: 0.5,
-        mountX: 0.25,
-        zIndex: 1,
-        src: './static/images/figures/chess-pawn-white.png',
-        shader: null,
-      },
-    }
-  }
-
-  _select() {
-    this.selected = true
-    this.tag('Image').patch({
-      smooth: {
-        scale: 1.4,
-        y: -50,
-      },
-      shader: { type: lng.shaders.Inversion },
-    })
-  }
-
-  _unselect() {
-    this.selected = false
-    this.tag('Image').patch({
-      smooth: {
-        scale: 1,
-        y: 0,
-      },
-      shader: null,
-    })
-  }
-
-  _focus() {
-    this.tag('Image').patch({
-      smooth: {
-        scale: 1.2,
-        y: -35,
-      },
-    })
-  }
-
-  _unfocus() {
-    if (!this.selected) {
-      this.tag('Image').patch({
-        smooth: {
-          scale: 1.0,
-          y: 0,
-        },
-      })
-    }
-  }
-}
-
 class Square extends Lightning.Component {
   static _template() {
     return {
@@ -213,7 +186,7 @@ class Square extends Lightning.Component {
 
   _focus() {
     this.patch({
-      shader: { type: lng.shaders.Inversion },
+      shader: { type: Lightning.shaders.Inversion },
     })
 
     this.children.forEach(child => (child._focus ? child._focus() : false))
