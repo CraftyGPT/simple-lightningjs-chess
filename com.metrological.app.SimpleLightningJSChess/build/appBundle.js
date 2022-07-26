@@ -3,7 +3,7 @@
  * SDK version: 4.8.3
  * CLI version: 2.8.0
  *
- * Generated: Tue, 26 Jul 2022 19:21:01 GMT
+ * Generated: Tue, 26 Jul 2022 22:00:46 GMT
  */
 
 var APP_com_metrological_app_SimpleLightningJSChess = (function () {
@@ -6369,8 +6369,11 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
    */
   const ChessboardFiles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const ChessboardRanks = ['1', '2', '3', '4', '5', '6', '7', '8'];
-  const ChessboardSquares = ChessboardFiles.map(file => ChessboardRanks.map(rank => [file, rank].join(""))).flat(1);
-  const ChessboardSquareSize = 64;
+  const ChessboardSquares = ChessboardFiles.map(file => ChessboardRanks.map(rank => [file, rank].join(''))).flat(1);
+  const IsometricSquareWidth = 124;
+  const IsometricSquareHeight = 60;
+  const IsometricMapOffsetX = 512;
+  const IsometricMapOffsetY = 0;
   class App extends Lightning.Component {
     static getFonts() {
       return [{
@@ -6382,11 +6385,6 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
     static _template() {
       return {
         ChessBoard: {
-          w: 512,
-          h: 512,
-          x: 480,
-          y: 270,
-          mount: 0.5,
           rect: true
         }
       };
@@ -6394,6 +6392,7 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
 
     _init() {
       this.index = 0;
+      this.selected = null;
       this.dataLength = ChessboardSquares.length;
       const squares = ChessboardSquares.reduce((prev, value, i) => {
         const x = ChessboardFiles.indexOf(value[0]);
@@ -6402,49 +6401,78 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
         const y = ranks.indexOf(value[1]);
         return { ...prev,
           [value]: {
-            type: Square,
-            x: x * ChessboardSquareSize,
-            y: y * ChessboardSquareSize,
-            w: ChessboardSquareSize,
+            x: IsometricMapOffsetX + Math.round((x - y) * IsometricSquareWidth / 2),
+            y: IsometricMapOffsetY + Math.round((x + y) * IsometricSquareHeight / 2),
+            w: IsometricSquareWidth,
+            h: IsometricSquareHeight,
+            zIndex: y,
             i: i,
-            color: i % 2 !== x % 2 ? 0xFF000000 : 0xFFFFFFFF,
+            type: i % 2 !== x % 2 ? DarkSquare : LightSquare,
+            // color: i % 2 !== x % 2 ? 0xff000000 : 0xffffffff,
+            color: 0x00000000,
             label: value
           }
         };
       }, {});
-      this.tag("ChessBoard").children = squares;
+      this.tag('ChessBoard').children = squares;
+      this.tag('ChessBoard').children[0].childList.add({
+        type: Pawn
+      });
+    }
+
+    _handleEnter() {
+      if (!this.selected) {
+        this.selected = this.tag('ChessBoard').children[this.index];
+        const piece = this.selected.children.find(child => child.constructor === Pawn);
+
+        if (piece) {
+          piece._select();
+        }
+      } else {
+        const piece = this.selected.children.find(child => child.constructor === Pawn);
+
+        if (piece) {
+          this.selected.childList.remove(piece);
+          this.selected = this.tag('ChessBoard').children[this.index];
+          this.selected.childList.add(piece);
+          this.selected = false;
+          setTimeout(() => piece._unselect(), 100);
+        } else {
+          this.selected = this.tag('ChessBoard').children[this.index];
+        }
+      }
     }
 
     _handleUp() {
-      const [x, y] = this.tag("ChessBoard").children[this.index].ref;
+      const [x, y] = this.tag('ChessBoard').children[this.index].ref;
       const index = ChessboardRanks.indexOf(y);
       const nextIndex = index + 1 >= ChessboardRanks.length ? 0 : index + 1;
       const ref = `${x}${ChessboardRanks[nextIndex]}`;
-      this.index = this.tag("ChessBoard").children.findIndex(child => child.ref === ref);
+      this.index = this.tag('ChessBoard').children.findIndex(child => child.ref === ref);
     }
 
     _handleDown() {
-      const [x, y] = this.tag("ChessBoard").children[this.index].ref;
+      const [x, y] = this.tag('ChessBoard').children[this.index].ref;
       const index = ChessboardRanks.indexOf(y);
       const nextIndex = index - 1 < 0 ? ChessboardRanks.length - 1 : index - 1;
       const ref = `${x}${ChessboardRanks[nextIndex]}`;
-      this.index = this.tag("ChessBoard").children.findIndex(child => child.ref === ref);
+      this.index = this.tag('ChessBoard').children.findIndex(child => child.ref === ref);
     }
 
     _handleLeft() {
-      const [x, y] = this.tag("ChessBoard").children[this.index].ref;
+      const [x, y] = this.tag('ChessBoard').children[this.index].ref;
       const index = ChessboardFiles.indexOf(x);
       const nextIndex = index - 1 < 0 ? ChessboardFiles.length - 1 : index - 1;
       const ref = `${ChessboardFiles[nextIndex]}${y}`;
-      this.index = this.tag("ChessBoard").children.findIndex(child => child.ref === ref);
+      this.index = this.tag('ChessBoard').children.findIndex(child => child.ref === ref);
     }
 
     _handleRight() {
-      const [x, y] = this.tag("ChessBoard").children[this.index].ref;
+      const [x, y] = this.tag('ChessBoard').children[this.index].ref;
       const index = ChessboardFiles.indexOf(x);
       const nextIndex = index + 1 >= ChessboardFiles.length ? 0 : index + 1;
       const ref = `${ChessboardFiles[nextIndex]}${y}`;
-      this.index = this.tag("ChessBoard").children.findIndex(child => child.ref === ref);
+      this.index = this.tag('ChessBoard').children.findIndex(child => child.ref === ref);
     }
 
     _getFocused() {
@@ -6453,18 +6481,78 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
 
   }
 
+  class Pawn extends Lightning.Component {
+    static _template() {
+      return {
+        rect: true,
+        Image: {
+          mountY: 0.5,
+          mountX: 0.25,
+          zIndex: 1,
+          src: "./static/images/figures/chess-pawn-white.png",
+          shader: null
+        }
+      };
+    }
+
+    _select() {
+      this.selected = true;
+      this.tag('Image').patch({
+        smooth: {
+          scale: 1.4,
+          y: -50
+        },
+        shader: {
+          type: lng.shaders.Inversion
+        }
+      });
+    }
+
+    _unselect() {
+      this.selected = false;
+      this.tag('Image').patch({
+        smooth: {
+          scale: 1,
+          y: 0
+        },
+        shader: null
+      });
+    }
+
+    _focus() {
+      this.tag('Image').patch({
+        smooth: {
+          scale: 1.2,
+          y: -35
+        }
+      });
+    }
+
+    _unfocus() {
+      if (!this.selected) {
+        this.tag('Image').patch({
+          smooth: {
+            scale: 1.0,
+            y: 0
+          }
+        });
+      }
+    }
+
+  }
+
   class Square extends Lightning.Component {
     static _template() {
       return {
+        w: 128,
         h: 64,
-        w: 64,
         rect: true,
         Label: {
           y: h => h / 2,
-          mountY: 0.5,
-          color: 0xff000000,
+          mount: 0.5,
+          color: 0xffffffff,
           text: {
-            fontSize: 32
+            fontSize: 16
           }
         }
       };
@@ -6474,39 +6562,78 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
       this.tag('Label').text = value.toString();
     }
 
-    _init() {
-      this.originalColor = this.color;
-    }
-
     _focus() {
       this.patch({
-        smooth: {
-          color: 0xff763ffc
-        },
-        Label: {
-          smooth: {
-            color: 0xffffffff
-          }
+        shader: {
+          type: lng.shaders.Inversion
         }
       });
+      this.children.forEach(child => child._focus ? child._focus() : false);
     }
 
     _unfocus() {
       this.patch({
-        smooth: {
-          color: this.originalColor
+        shader: null
+      });
+      this.children.forEach(child => child._unfocus ? child._unfocus() : false);
+    }
+
+  }
+
+  class LightSquare extends Square {
+    static _template() {
+      return {
+        w: 128,
+        h: 64,
+        rect: true,
+        Image: {
+          mount: 0,
+          w: 128,
+          h: 64,
+          src: "./static/images/tile_light.png"
         },
         Label: {
-          smooth: {
-            color: 0xff000000
+          y: h => h / 2,
+          mountX: -2.5,
+          mountY: 0.5,
+          color: 0xffffffff,
+          text: {
+            fontSize: 16
           }
         }
-      });
+      };
+    }
+
+  }
+
+  class DarkSquare extends Square {
+    static _template() {
+      return {
+        w: 128,
+        h: 64,
+        rect: true,
+        Image: {
+          mount: 0,
+          w: 128,
+          h: 64,
+          src: "./static/images/tile_dark.png"
+        },
+        Label: {
+          y: h => h / 2,
+          mountX: -2.5,
+          mountY: 0.5,
+          color: 0xffffffff,
+          text: {
+            fontSize: 16
+          }
+        }
+      };
     }
 
   }
 
   function index () {
+    document.head.innerHTML += "<style>body, html { overflow: hidden; background: black; } </style>";
     return Launch(App, ...arguments);
   }
 

@@ -17,14 +17,18 @@
  * limitations under the License.
  */
 
-import { Lightning, Utils } from '@lightningjs/sdk'
+import { Lightning, Utils, lng } from '@lightningjs/sdk'
 
 const ChessboardFiles = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const ChessboardRanks = ['1', '2', '3', '4', '5', '6', '7', '8']
 const ChessboardSquares = ChessboardFiles.map(file =>
   ChessboardRanks.map(rank => [file, rank].join(''))
 ).flat(1)
-const ChessboardSquareSize = 64
+
+const IsometricSquareWidth = 124
+const IsometricSquareHeight = 60
+const IsometricMapOffsetX = 512
+const IsometricMapOffsetY = 0
 
 export default class App extends Lightning.Component {
   static getFonts() {
@@ -34,11 +38,6 @@ export default class App extends Lightning.Component {
   static _template() {
     return {
       ChessBoard: {
-        w: 512,
-        h: 512,
-        x: 480,
-        y: 270,
-        mount: 0.5,
         rect: true,
       },
     }
@@ -46,6 +45,7 @@ export default class App extends Lightning.Component {
 
   _init() {
     this.index = 0
+    this.selected = null
     this.dataLength = ChessboardSquares.length
     const squares = ChessboardSquares.reduce((prev, value, i) => {
       const x = ChessboardFiles.indexOf(value[0])
@@ -56,17 +56,43 @@ export default class App extends Lightning.Component {
       return {
         ...prev,
         [value]: {
-          type: Square,
-          x: x * ChessboardSquareSize,
-          y: y * ChessboardSquareSize,
-          w: ChessboardSquareSize,
+          x: IsometricMapOffsetX + Math.round(((x - y) * IsometricSquareWidth) / 2),
+          y: IsometricMapOffsetY + Math.round(((x + y) * IsometricSquareHeight) / 2),
+          w: IsometricSquareWidth,
+          h: IsometricSquareHeight,
+          zIndex: y,
           i: i,
-          color: i % 2 !== x % 2 ? 0xff000000 : 0xffffffff,
+          type: i % 2 !== x % 2 ? DarkSquare : LightSquare,
+          // color: i % 2 !== x % 2 ? 0xff000000 : 0xffffffff,
+          color: 0x00000000,
           label: value,
         },
       }
     }, {})
     this.tag('ChessBoard').children = squares
+    this.tag('ChessBoard').children[0].childList.add({ type: Pawn })
+  }
+
+  _handleEnter() {
+    if (!this.selected) {
+      this.selected = this.tag('ChessBoard').children[this.index]
+      const piece = this.selected.children.find(child => child.constructor === Pawn)
+      if (piece) {
+        piece._select()
+      }
+    } else {
+      const piece = this.selected.children.find(child => child.constructor === Pawn)
+
+      if (piece) {
+        this.selected.childList.remove(piece)
+        this.selected = this.tag('ChessBoard').children[this.index]
+        this.selected.childList.add(piece)
+        this.selected = false
+        setTimeout(() => piece._unselect(), 100)
+      } else {
+        this.selected = this.tag('ChessBoard').children[this.index]
+      }
+    }
   }
 
   _handleUp() {
@@ -110,44 +136,139 @@ export default class App extends Lightning.Component {
   }
 }
 
-class Square extends Lightning.Component {
+class Pawn extends Lightning.Component {
   static _template() {
     return {
-      h: 64,
-      w: 64,
       rect: true,
-      Label: {
-        y: h => h / 2,
+      Image: {
         mountY: 0.5,
-        color: 0xff000000,
-        text: { fontSize: 32 },
+        mountX: 0.25,
+        zIndex: 1,
+        src: './static/images/figures/chess-pawn-white.png',
+        shader: null,
       },
     }
   }
 
-  set label(value) {
-    this.tag('Label').text = value.toString()
+  _select() {
+    this.selected = true
+    this.tag('Image').patch({
+      smooth: {
+        scale: 1.4,
+        y: -50,
+      },
+      shader: { type: lng.shaders.Inversion },
+    })
   }
 
-  _init() {
-    this.originalColor = this.color
+  _unselect() {
+    this.selected = false
+    this.tag('Image').patch({
+      smooth: {
+        scale: 1,
+        y: 0,
+      },
+      shader: null,
+    })
   }
 
   _focus() {
-    this.patch({
-      smooth: { color: 0xff763ffc },
-      Label: {
-        smooth: { color: 0xffffffff },
+    this.tag('Image').patch({
+      smooth: {
+        scale: 1.2,
+        y: -35,
       },
     })
   }
 
   _unfocus() {
-    this.patch({
-      smooth: { color: this.originalColor },
+    if (!this.selected) {
+      this.tag('Image').patch({
+        smooth: {
+          scale: 1.0,
+          y: 0,
+        },
+      })
+    }
+  }
+}
+
+class Square extends Lightning.Component {
+  static _template() {
+    return {
+      w: 128,
+      h: 64,
+      rect: true,
       Label: {
-        smooth: { color: 0xff000000 },
+        y: h => h / 2,
+        mount: 0.5,
+        color: 0xffffffff,
+        text: { fontSize: 16 },
       },
+    }
+  }
+  set label(value) {
+    this.tag('Label').text = value.toString()
+  }
+
+  _focus() {
+    this.patch({
+      shader: { type: lng.shaders.Inversion },
     })
+
+    this.children.forEach(child => (child._focus ? child._focus() : false))
+  }
+
+  _unfocus() {
+    this.patch({
+      shader: null,
+    })
+    this.children.forEach(child => (child._unfocus ? child._unfocus() : false))
+  }
+}
+
+class LightSquare extends Square {
+  static _template() {
+    return {
+      w: 128,
+      h: 64,
+      rect: true,
+      Image: {
+        mount: 0,
+        w: 128,
+        h: 64,
+        src: './static/images/tile_light.png',
+      },
+      Label: {
+        y: h => h / 2,
+        mountX: -2.5,
+        mountY: 0.5,
+        color: 0xffffffff,
+        text: { fontSize: 16 },
+      },
+    }
+  }
+}
+
+class DarkSquare extends Square {
+  static _template() {
+    return {
+      w: 128,
+      h: 64,
+      rect: true,
+      Image: {
+        mount: 0,
+        w: 128,
+        h: 64,
+        src: './static/images/tile_dark.png',
+      },
+      Label: {
+        y: h => h / 2,
+        mountX: -2.5,
+        mountY: 0.5,
+        color: 0xffffffff,
+        text: { fontSize: 16 },
+      },
+    }
   }
 }
