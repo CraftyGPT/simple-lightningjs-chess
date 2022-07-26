@@ -92,7 +92,6 @@ export default class App extends Lightning.Component {
     }
 
     Object.keys(pieces).forEach(piece => {
-      console.log(piece)
       const coords = pieces[piece]
       coords.forEach(coord => {
         const square = this.tag('ChessBoard').childList.getByRef(coord)

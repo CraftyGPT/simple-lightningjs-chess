@@ -3,7 +3,7 @@
  * SDK version: 4.8.3
  * CLI version: 2.8.0
  *
- * Generated: Tue, 26 Jul 2022 23:03:49 GMT
+ * Generated: Tue, 26 Jul 2022 23:15:08 GMT
  */
 
 var APP_com_metrological_app_SimpleLightningJSChess = (function () {
@@ -6358,7 +6358,7 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
           y: -50
         },
         shader: {
-          type: lng.shaders.Inversion
+          type: Lightning.shaders.Inversion
         }
       });
     }
@@ -6398,8 +6398,8 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
 
   const classNameToFileName = str => str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
 
-  const figures = ["Pawn", "Bishop", "King", "Knight", "Rook", "Queen", "King"];
-  const colors = ["Black", "White"];
+  const figures = ['Pawn', 'Bishop', 'King', 'Knight', 'Rook', 'Queen', 'King'];
+  const colors = ['Black', 'White'];
   const pieceKeys = figures.flatMap(figure => colors.map(color => `${figure}${color}`));
   const Pieces = pieceKeys.reduce((prev, curr) => ({ ...prev,
     [curr]: class extends Piece {
@@ -6505,7 +6505,6 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
         KingWhite: ['E1']
       };
       Object.keys(pieces).forEach(piece => {
-        console.log(piece);
         const coords = pieces[piece];
         coords.forEach(coord => {
           const square = this.tag('ChessBoard').childList.getByRef(coord);
@@ -6604,7 +6603,7 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
     _focus() {
       this.patch({
         shader: {
-          type: lng.shaders.Inversion
+          type: Lightning.shaders.Inversion
         }
       });
       this.children.forEach(child => child._focus ? child._focus() : false);
