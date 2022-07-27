@@ -3,7 +3,7 @@
  * SDK version: 4.8.3
  * CLI version: 2.8.0
  *
- * Generated: Tue, 26 Jul 2022 23:16:58 GMT
+ * Generated: Tue, 26 Jul 2022 23:22:08 GMT
  */
 
 var APP_com_metrological_app_SimpleLightningJSChess = (function () {
@@ -6678,4 +6678,3 @@ var APP_com_metrological_app_SimpleLightningJSChess = (function () {
   return index;
 
 })();
-//# sourceMappingURL=appBundle.js.map
